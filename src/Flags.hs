@@ -180,6 +180,7 @@ reportFlag =
       case str of
         "normal" -> Just Report.Normal
         "json" -> Just Report.Json
+        "emacs" -> Just Report.Emacs
         _ -> Nothing
 
     options =
@@ -190,7 +191,7 @@ reportFlag =
         , Opt.help "Format of error and warning reports (e.g. --report=json)"
         ]
   in
-    Opt.option (argReader ["normal","json"] fromString) options
+    Opt.option (argReader ["normal","json","emacs"] fromString) options
 
 
 argReader :: [String] -> (String -> Maybe a) -> Opt.ReadM a

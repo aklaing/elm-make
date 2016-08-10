@@ -15,7 +15,7 @@ import System.IO (hFlush, hPutStr, hPutStrLn, stderr, stdout)
 import TheMasterPlan (CanonicalModule(CanonicalModule), Package)
 
 
-data Type = Normal | Json
+data Type = Normal | Json | Emacs
 
 
 data Message
@@ -33,7 +33,11 @@ thread reportType warn messageChan rootPkg totalTasks =
   case reportType of
     Normal ->
         do  isTerminal <- checkIsTerminal
-            normalLoop isTerminal warn messageChan rootPkg totalTasks 0 0
+            normalLoop isTerminal False warn messageChan rootPkg totalTasks 0 0
+
+    Emacs ->
+        do  isTerminal <- checkIsTerminal
+            normalLoop isTerminal True warn messageChan rootPkg totalTasks 0 0
 
     Json ->
         jsonLoop messageChan rootPkg 0
@@ -76,11 +80,11 @@ printJsonList toJson values =
 -- NORMAL LOOP
 
 
-normalLoop :: Bool -> Bool -> Chan.Chan Message -> Package -> Int -> Int -> Int -> IO ()
-normalLoop isTerminal warn messageChan rootPkg total successes failures =
+normalLoop :: Bool -> Bool -> Bool -> Chan.Chan Message -> Package -> Int -> Int -> Int -> IO ()
+normalLoop isTerminal isEmacsStyle warn messageChan rootPkg total successes failures =
   let
     go =
-      normalLoop isTerminal warn messageChan rootPkg total
+      normalLoop isTerminal isEmacsStyle warn messageChan rootPkg total
   in
   do  when isTerminal $
           do  hPutStr stdout (renderProgressBar successes failures total)
@@ -100,7 +104,7 @@ normalLoop isTerminal warn messageChan rootPkg total successes failures =
             do  when (pkg == rootPkg && warn && not (null warnings)) $
                     do  hFlush stdout
                         printSeparator isTerminal Yellow "WARNINGS"
-                        mapM_ (printWarning isTerminal localizer path source) warnings
+                        mapM_ (printWarning isTerminal isEmacsStyle localizer path source) warnings
 
                 go (successes + 1) failures
 
@@ -109,13 +113,13 @@ normalLoop isTerminal warn messageChan rootPkg total successes failures =
 
                 when (pkg == rootPkg && warn && not (null warnings)) $
                     do  printSeparator isTerminal Yellow "WARNINGS"
-                        mapM_ (printWarning isTerminal localizer path source) warnings
+                        mapM_ (printWarning isTerminal isEmacsStyle localizer path source) warnings
 
 
                 if pkg == rootPkg
                   then
                     do  when (length warnings + failures > 0) (printSeparator isTerminal Red "ERRORS")
-                        mapM_ (printError isTerminal localizer path source) errors
+                        mapM_ (printError isTerminal isEmacsStyle localizer path source) errors
 
                   else
                     hPutStr stderr (dependencyError pkg)
@@ -157,20 +161,20 @@ printSeparator isTerminal color header =
         when isTerminal $ hSetSGR stderr [Reset]
 
 
-printError :: Bool -> Compiler.Localizer -> FilePath -> String -> Compiler.Error -> IO ()
-printError isTerminal localizer path source err =
+printError :: Bool -> Bool -> Compiler.Localizer -> FilePath -> String -> Compiler.Error -> IO ()
+printError isTerminal isEmacsStyle localizer path source err =
   if isTerminal then
-    Compiler.printError stderr localizer path source err
+    Compiler.printError stderr isEmacsStyle localizer path source err
   else
-    hPutStr stderr (Compiler.errorToString localizer path source err)
+    hPutStr stderr (Compiler.errorToString isEmacsStyle localizer path source err)
 
 
-printWarning :: Bool -> Compiler.Localizer -> FilePath -> String -> Compiler.Warning -> IO ()
-printWarning isTerminal localizer path source err =
+printWarning :: Bool -> Bool -> Compiler.Localizer -> FilePath -> String -> Compiler.Warning -> IO ()
+printWarning isTerminal isEmacsStyle localizer path source err =
   if isTerminal then
-    Compiler.printWarning stderr localizer path source err
+    Compiler.printWarning stderr isEmacsStyle localizer path source err
   else
-    hPutStr stderr (Compiler.warningToString localizer path source err)
+    hPutStr stderr (Compiler.warningToString isEmacsStyle localizer path source err)
 
 
 checkIsTerminal :: IO Bool

@@ -164,7 +164,7 @@ printError err =
   case err of
     CompilerErrors path source errors ->
         do  isTerminal <- Report.checkIsTerminal
-            mapM_ (Report.printError isTerminal Compiler.dummyLocalizer path source) errors
+            mapM_ (Report.printError isTerminal False Compiler.dummyLocalizer path source) errors
 
     CorruptedArtifact filePath ->
         hPutStrLn stderr $
